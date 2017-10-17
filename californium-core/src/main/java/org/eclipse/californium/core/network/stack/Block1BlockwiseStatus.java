@@ -32,6 +32,7 @@ import org.eclipse.californium.core.network.Exchange;
 final class Block1BlockwiseStatus extends BlockwiseStatus {
 
 	private Request request;
+	private Exchange exchange;
 
 	private Block1BlockwiseStatus(final int bufferSize, final int contentFormat) {
 		super(bufferSize, contentFormat);
@@ -48,6 +49,7 @@ final class Block1BlockwiseStatus extends BlockwiseStatus {
 	static Block1BlockwiseStatus forOutboundRequest(final Exchange exchange, final Request request, final int preferredBlockSize) {
 		Block1BlockwiseStatus status = new Block1BlockwiseStatus(0, request.getOptions().getContentFormat());
 		status.request = request;
+		status.exchange = exchange;
 		status.setCurrentSzx(BlockOption.size2Szx(preferredBlockSize));
 		return status;
 	}
@@ -162,5 +164,9 @@ final class Block1BlockwiseStatus extends BlockwiseStatus {
 	 */
 	boolean hasMatchingToken(final Response response) {
 		return request != null && Arrays.equals(request.getToken(), response.getToken());
+	}
+	
+	public void timeoutCurrentTranfer() {
+		exchange.setTimedOut(exchange.getCurrentRequest());
 	}
 }

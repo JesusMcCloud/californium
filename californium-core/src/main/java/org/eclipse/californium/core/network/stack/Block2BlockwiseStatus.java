@@ -368,6 +368,15 @@ final class Block2BlockwiseStatus extends BlockwiseStatus {
 		}
 	}
 	
+
+	/**
+	 * Complete current transfert
+	 */
+	public void timeoutCurrentTranfer() {
+		this.exchange.setTimedOut(this.exchange.getCurrentRequest());
+	}
+
+	
 	/**
 	 * Complete given new exchange only if this is not the one using by this current block status
 	 */
