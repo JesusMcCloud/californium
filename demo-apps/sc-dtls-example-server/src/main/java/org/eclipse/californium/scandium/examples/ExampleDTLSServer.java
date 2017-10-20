@@ -1,20 +1,28 @@
 /*******************************************************************************
  * Copyright (c) 2015 Institute for Pervasive Computing, ETH Zurich and others.
- * 
+ *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * and Eclipse Distribution License v1.0 which accompany this distribution.
- * 
+ *
  * The Eclipse Public License is available at
  *    http://www.eclipse.org/legal/epl-v10.html
  * and the Eclipse Distribution License is available at
  *    http://www.eclipse.org/org/documents/edl-v10.html.
- * 
+ *
  * Contributors:
  *    Matthias Kovatsch - creator and main architect
  *    Stefan Jucker - DTLS implementation
  ******************************************************************************/
 package org.eclipse.californium.scandium.examples;
+
+import org.eclipse.californium.elements.Connector;
+import org.eclipse.californium.elements.RawData;
+import org.eclipse.californium.elements.RawDataChannel;
+import org.eclipse.californium.scandium.DTLSConnector;
+import org.eclipse.californium.scandium.ScandiumLogger;
+import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
+import org.eclipse.californium.scandium.dtls.pskstore.InMemoryPskStore;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -26,107 +34,100 @@ import java.security.cert.Certificate;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import org.eclipse.californium.elements.Connector;
-import org.eclipse.californium.elements.RawData;
-import org.eclipse.californium.elements.RawDataChannel;
-import org.eclipse.californium.scandium.DTLSConnector;
-import org.eclipse.californium.scandium.ScandiumLogger;
-import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
-import org.eclipse.californium.scandium.dtls.pskstore.InMemoryPskStore;
-
 public class ExampleDTLSServer {
 
-	static {
-		ScandiumLogger.initialize();
-		ScandiumLogger.setLevel(Level.WARNING);
-	}
+    static {
+        ScandiumLogger.initialize();
+        ScandiumLogger.setLevel(Level.WARNING);
+    }
 
-	private static final int DEFAULT_PORT = 5684;
-	private static final Logger LOG = Logger.getLogger(ExampleDTLSServer.class.getName());
-	private static final String TRUST_STORE_PASSWORD = "rootPass";
-	private static final String KEY_STORE_PASSWORD = "endPass";
-	private static final String KEY_STORE_LOCATION = "certs/keyStore.jks";
-	private static final String TRUST_STORE_LOCATION = "certs/trustStore.jks";
+    private static final int    DEFAULT_PORT         = 5683;
+    private static final Logger LOG                  = Logger.getLogger(ExampleDTLSServer.class.getName());
+    private static final String TRUST_STORE_PASSWORD = "rootPass";
+    private static final String KEY_STORE_PASSWORD   = "endPass";
+    private static final String KEY_STORE_LOCATION   = "certs/keyStore.jks";
+    private static final String TRUST_STORE_LOCATION = "certs/trustStore.jks";
 
-	private DTLSConnector dtlsConnector;
+    private DTLSConnector dtlsConnector;
 
-	public ExampleDTLSServer() {
-		InMemoryPskStore pskStore = new InMemoryPskStore();
-		// put in the PSK store the default identity/psk for tinydtls tests
-		pskStore.setKey("Client_identity", "secretPSK".getBytes());
-		InputStream in = null;
-		try {
-			// load the key store
-			KeyStore keyStore = KeyStore.getInstance("JKS");
-			in = getClass().getClassLoader().getResourceAsStream(KEY_STORE_LOCATION);
-			keyStore.load(in, KEY_STORE_PASSWORD.toCharArray());
-			in.close();
+    public ExampleDTLSServer() {
+        final InMemoryPskStore pskStore = new InMemoryPskStore();
+        // put in the PSK store the default identity/psk for tinydtls tests
+        pskStore.setKey("Client_identity", "secretPSK".getBytes());
+        InputStream in = null;
+        try {
+            // load the key store
+            final KeyStore keyStore = KeyStore.getInstance("JKS");
+            in = getClass().getClassLoader().getResourceAsStream(KEY_STORE_LOCATION);
+            keyStore.load(in, KEY_STORE_PASSWORD.toCharArray());
+            in.close();
 
-			// load the trust store
-			KeyStore trustStore = KeyStore.getInstance("JKS");
-			InputStream inTrust = getClass().getClassLoader().getResourceAsStream(TRUST_STORE_LOCATION);
-			trustStore.load(inTrust, TRUST_STORE_PASSWORD.toCharArray());
+            // load the trust store
+            final KeyStore    trustStore = KeyStore.getInstance("JKS");
+            final InputStream inTrust    = getClass().getClassLoader().getResourceAsStream(TRUST_STORE_LOCATION);
+            trustStore.load(inTrust, TRUST_STORE_PASSWORD.toCharArray());
 
-			// You can load multiple certificates if needed
-			Certificate[] trustedCertificates = new Certificate[1];
-			trustedCertificates[0] = trustStore.getCertificate("root");
+            // You can load multiple certificates if needed
+            final Certificate[] trustedCertificates = new Certificate[1];
+            trustedCertificates[0] = trustStore.getCertificate("root");
 
-			DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder();
-			builder.setAddress(new InetSocketAddress(DEFAULT_PORT));
-			builder.setPskStore(pskStore);
-			builder.setIdentity((PrivateKey) keyStore.getKey("server", KEY_STORE_PASSWORD.toCharArray()),
-					keyStore.getCertificateChain("server"), true);
-			builder.setTrustStore(trustedCertificates);
-			dtlsConnector = new DTLSConnector(builder.build());
-			dtlsConnector.setRawDataReceiver(new RawDataChannelImpl(dtlsConnector));
+            final DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder();
+            builder.setAddress(new InetSocketAddress(DEFAULT_PORT));
+            builder.setPskStore(pskStore);
+            builder.setIdentity((PrivateKey) keyStore.getKey("server", KEY_STORE_PASSWORD.toCharArray()),
+                    keyStore.getCertificateChain("server"),
+                    true);
+            builder.setTrustStore(trustedCertificates);
+            dtlsConnector = new DTLSConnector(builder.build());
+            dtlsConnector.setRawDataReceiver(new RawDataChannelImpl(dtlsConnector));
 
-		} catch (GeneralSecurityException | IOException e) {
-			LOG.log(Level.SEVERE, "Could not load the keystore", e);
-		} finally {
-			if (in != null) {
-				try {
-					in.close();
-				} catch (IOException e) {
-					LOG.log(Level.SEVERE, "Cannot close key store file", e);
-				}
-			}
-		}
+        } catch (GeneralSecurityException | IOException e) {
+            LOG.log(Level.SEVERE, "Could not load the keystore", e);
+        } finally {
+            if (in != null) {
+                try {
+                    in.close();
+                } catch (final IOException e) {
+                    LOG.log(Level.SEVERE, "Cannot close key store file", e);
+                }
+            }
+        }
 
-	}
+    }
 
-	public void start() {
-		try {
-			dtlsConnector.start();
-			System.out.println("DTLS example server started");
-		} catch (IOException e) {
-			throw new IllegalStateException("Unexpected error starting the DTLS UDP server", e);
-		}
-	}
+    public void start() {
+        try {
+            dtlsConnector.start();
+            System.out.println("DTLS example server started");
+        } catch (final IOException e) {
+            throw new IllegalStateException("Unexpected error starting the DTLS UDP server", e);
+        }
+    }
 
-	private class RawDataChannelImpl implements RawDataChannel {
+    private class RawDataChannelImpl implements RawDataChannel {
 
-		private Connector connector;
+        private final Connector connector;
 
-		public RawDataChannelImpl(Connector con) {
-			this.connector = con;
-		}
+        public RawDataChannelImpl(final Connector con) {
+            connector = con;
+        }
 
-		@Override
-		public void receiveData(final RawData raw) {
-			LOG.log(Level.INFO, "Received request: {0}", new String(raw.getBytes()));
-			RawData response = RawData.outbound("ACK".getBytes(), raw.getEndpointContext(), null, false);
-			connector.send(response);
-		}
-	}
+        @Override
+        public void receiveData(final RawData raw) {
+            LOG.log(Level.INFO, "Received request: {0}", new String(raw.getBytes()));
+            final RawData response = RawData.outbound("ACK".getBytes(), raw.getEndpointContext(), null, false);
+            connector.send(response);
+        }
+    }
 
-	public static void main(String[] args) {
+    public static void main(final String[] args) {
 
-		if (0 < args.length) {
-			if (args[0].equals("-v")) {
-				ScandiumLogger.setLevel(Level.INFO);
-			}
-		}
-		ExampleDTLSServer server = new ExampleDTLSServer();
-		server.start();
-	}
+        if (0 < args.length) {
+            if (args[0].equals("-v")) {
+                ScandiumLogger.setLevel(Level.INFO);
+            }
+        }
+        final ExampleDTLSServer server = new ExampleDTLSServer();
+        server.start();
+    }
 }
